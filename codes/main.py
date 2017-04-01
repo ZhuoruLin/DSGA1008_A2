@@ -68,7 +68,7 @@ test_data = batchify(corpus.test, eval_batch_size)
 ###############################################################################
 
 ntokens = len(corpus.dictionary)
-model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers,args.pdropout)
+model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers)
 if args.cuda:
     model.cuda()
 
@@ -147,6 +147,12 @@ def train():
 
 
 # Loop over epochs.
+##########
+#Simon's Edit: Add lines to store epochs val_loss information
+val_loss_history = []
+test_loss_history = []
+#########
+
 lr = args.lr
 prev_val_loss = None
 for epoch in range(1, args.epochs+1):
@@ -162,14 +168,24 @@ for epoch in range(1, args.epochs+1):
     if prev_val_loss and val_loss > prev_val_loss:
         lr /= 4
     prev_val_loss = val_loss
+    ####Update val_loss history files
+    val_loss_hitory.append(val_loss)
 
 
 # Run on test data and save the model.
 test_loss = evaluate(test_data)
+test_loss_history.append(test_loss)
 print('=' * 89)
 print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
     test_loss, math.exp(test_loss)))
 print('=' * 89)
+
+##########Simon's Edit########
+#####Save embeddings info to local#####
+##########################
+embeddings_numpy = model.encoder.weight.data.numpy()
+info_sheets = {val_loss_history:val_loss_history,test_loss_history:test_loss_hitory, embeddings = embeddings_numpy}
+
 if args.save != '':
     with open(args.save, 'wb') as f:
         torch.save(model, f)
