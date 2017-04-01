@@ -37,6 +37,8 @@ parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--save', type=str,  default='model.pt',
                     help='path to save the final model')
+parser.add_argument('--pdropout', type=int, default=0.5,
+                    help='Dropout keeping probability, default 0.5')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
