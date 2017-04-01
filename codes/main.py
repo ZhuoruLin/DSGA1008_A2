@@ -4,6 +4,9 @@ import math
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+###
+import pickle
+###
 
 import data
 import model
@@ -39,6 +42,8 @@ parser.add_argument('--save', type=str,  default='model.pt',
                     help='path to save the final model')
 parser.add_argument('--pdropout', type=int, default=0.5,
                     help='Dropout keeping probability, default 0.5')
+parser.add_argument('--infopath', type=str,  default='info.pk',
+                    help='path to save the final model')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -189,3 +194,5 @@ info_sheets = {val_loss_history:val_loss_history,test_loss_history:test_loss_hit
 if args.save != '':
     with open(args.save, 'wb') as f:
         torch.save(model, f)
+with open(args.infopath, 'wb') as handle:
+    pickle.dump(info_sheets, handle, protocol=pickle.HIGHEST_PROTOCOL)
