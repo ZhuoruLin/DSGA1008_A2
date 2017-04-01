@@ -73,7 +73,7 @@ test_data = batchify(corpus.test, eval_batch_size)
 ###############################################################################
 
 ntokens = len(corpus.dictionary)
-model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers)
+model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers,args.pdropout)
 if args.cuda:
     model.cuda()
 
@@ -174,7 +174,7 @@ for epoch in range(1, args.epochs+1):
         lr /= 4
     prev_val_loss = val_loss
     ####Update val_loss history files
-    val_loss_hitory.append(val_loss)
+    val_loss_history.append(val_loss)
 
 
 # Run on test data and save the model.
@@ -188,8 +188,8 @@ print('=' * 89)
 ##########Simon's Edit########
 #####Save embeddings info to local#####
 ##########################
-embeddings_numpy = model.encoder.weight.data.numpy()
-info_sheets = {val_loss_history:val_loss_history,test_loss_history:test_loss_hitory, embeddings = embeddings_numpy}
+embeddings_numpy = model.encoder.weight.data.cpu().numpy()
+info_sheets = {'val_losses':val_loss_history,'test_losses':test_loss_history, 'embeddings':embeddings_numpy}
 
 if args.save != '':
     with open(args.save, 'wb') as f:
