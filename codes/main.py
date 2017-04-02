@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 ###
 import pickle
+from torch.utils.data import DataLoader
 ###
 
 import data
@@ -161,6 +162,11 @@ test_loss_history = []
 lr = args.lr
 prev_val_loss = None
 for epoch in range(1, args.epochs+1):
+    #############################################
+    #Simon's Edit: Shuffle traindata every epochs
+    train_loader = DataLoader(train_data,batch_size=len(train_data),shuffle=True)
+    train_data = iter(train_loader).next()
+    #############################################
     epoch_start_time = time.time()
     train()
     val_loss = evaluate(val_data)
