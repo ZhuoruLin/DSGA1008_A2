@@ -206,10 +206,10 @@ print('=' * 89)
 #####Save embeddings info to local#####
 ##########################
 embeddings_numpy = model.encoder.weight.data.cpu().numpy()
-info_sheets = {'val_losses':val_loss_history,'test_losses':test_loss_history, 'embeddings':embeddings_numpy}
+info_sheets = {'args':args,'val_losses':val_loss_history,'test_losses':test_loss_history, 'embeddings':embeddings_numpy}
 
-if args.save != '':
-    with open(args.save, 'wb') as f:
-        torch.save(model, f)
+#if args.save != '':
+#    with open(args.save, 'wb') as f:
+#        torch.save(model, f)
 with open(args.infopath, 'wb') as handle:
     pickle.dump(info_sheets, handle, protocol=pickle.HIGHEST_PROTOCOL)
