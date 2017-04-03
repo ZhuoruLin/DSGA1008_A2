@@ -42,6 +42,8 @@ parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--save', type=str,  default='model.pt',
                     help='path to save the final model')
+parser.add_argument('--tied', action='store_true',
+                    help='tie the word embedding and softmax weights')
 parser.add_argument('--pdropout', type=int, default=0.2,
                     help='Dropout probability, default 0.5')
 ##############################################################################
@@ -79,7 +81,7 @@ test_data = batchify(corpus.test, eval_batch_size)
 ###############################################################################
 
 ntokens = len(corpus.dictionary)
-model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers,args.pdropout)
+model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers,args.pdropout,args.tied)
 if args.cuda:
     model.cuda()
 
@@ -158,8 +160,8 @@ def train():
 
 ##############################################################################
 #Simon's Edit: Initialized pretrained embeddings
-init_emb_weights=np.load('penn_Glove_10000_100d.npy')
-model.encoder.weight.data.copy_= torch.from_numpy(init_emb_weights)
+#init_emb_weights=np.load('penn_Glove_10000_100d.npy')
+#model.encoder.weight.data.copy_= torch.from_numpy(init_emb_weights)
 ##############################################################################
 # Loop over epochs.
 ##########
