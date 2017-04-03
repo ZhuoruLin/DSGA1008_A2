@@ -7,6 +7,7 @@ from torch.autograd import Variable
 ###
 import pickle
 from torch.utils.data import DataLoader
+import numpy as np
 ###
 
 import data
@@ -43,6 +44,9 @@ parser.add_argument('--save', type=str,  default='model.pt',
                     help='path to save the final model')
 parser.add_argument('--pdropout', type=int, default=0.5,
                     help='Dropout keeping probability, default 0.5')
+##############################################################################
+#Simon's Edit
+##############################################################################
 parser.add_argument('--infopath', type=str,  default='info.pk',
                     help='path to save the final model')
 args = parser.parse_args()
@@ -68,6 +72,7 @@ eval_batch_size = 10
 train_data = batchify(corpus.train, args.batch_size)
 val_data = batchify(corpus.valid, eval_batch_size)
 test_data = batchify(corpus.test, eval_batch_size)
+
 
 ###############################################################################
 # Build the model
@@ -151,7 +156,11 @@ def train():
             total_loss = 0
             start_time = time.time()
 
-
+##############################################################################
+#Simon's Edit: Initialized pretrained embeddings
+init_emb_weights=np.load('penn_Glove_10000_100d.npy')
+model.encoder.weight.data.copy_= torch.from_numpy(init_emb_weights)
+##############################################################################
 # Loop over epochs.
 ##########
 #Simon's Edit: Add lines to store epochs val_loss information
@@ -164,8 +173,8 @@ prev_val_loss = None
 for epoch in range(1, args.epochs+1):
     #############################################
     #Simon's Edit: Shuffle traindata every epochs
-    train_loader = DataLoader(train_data,batch_size=len(train_data),shuffle=True)
-    train_data = iter(train_loader).next()
+    #train_loader = DataLoader(train_data,batch_size=len(train_data),shuffle=True)
+    #train_data = iter(train_loader).next()
     #############################################
     epoch_start_time = time.time()
     train()
