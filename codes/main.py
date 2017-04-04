@@ -117,6 +117,7 @@ def get_batch(source, i, evaluation=False):
 
 
 def evaluate(data_source):
+    model.eval()
     total_loss = 0
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(eval_batch_size)
@@ -211,6 +212,7 @@ print('=' * 89)
 ##########################
 embeddings_numpy = model.encoder.weight.data.cpu().numpy()
 info_sheets = {'args':args,'val_losses':val_loss_history,'test_losses':test_loss_history, 'embeddings':embeddings_numpy}
+#####################
 
 #if args.save != '':
 #    with open(args.save, 'wb') as f:
