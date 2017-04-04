@@ -1,5 +1,5 @@
 import os
-import numpu as np
+import numpy as np
 emb_hid_sizes = [300,500]
 pdropouts = [0.0,0.2,0.5]
 model = 'LSTM'
