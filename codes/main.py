@@ -44,7 +44,7 @@ parser.add_argument('--save', type=str,  default='model.pt',
                     help='path to save the final model')
 parser.add_argument('--tied', action='store_true',
                     help='tie the word embedding and softmax weights')
-parser.add_argument('--pdropout', type=int, default=0.2,
+parser.add_argument('--pdropout', type=float, default=0.2,
                     help='Dropout probability, default 0.5')
 ##############################################################################
 #Simon's Edit
