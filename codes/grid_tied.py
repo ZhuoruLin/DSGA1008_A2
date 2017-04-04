@@ -1,13 +1,14 @@
 import os
-emb_hid_sizes = [100,300,500,1000,1500]
-bptts = [20,25,30,35]
-
+import numpu as np
+emb_hid_sizes = [300,500]
+pdropouts = [0.0,0.2,0.5]
+model = 'LSTM'
 for size in emb_hid_sizes:
-	for bptt in bptts:
-	    save_path = '../../datasets/saved_models/%s_%s.pt' %(size,bptt)
-	    info_path = '../../datasets/info_dict/%s_%s.pk' %(size,bptt)
-	    cmdLine = 'python main.py --cuda --tied --batch-size 200 --bptt %s --emsize %s --nhid %s\
-	    --save %s --infopath %s'%(bptt,size,size,save_path,info_path)
+	for pdropout in pdropouts:
+	    save_path = '../../datasets/saved_models/%s_%s_%s_tied_%s.pt' %(model,size,size,pdropout)
+	    info_path = '../../datasets/info_dict/%s_%s_%s_tied_%s.pk' %(model,size,size,pdropout)
+	    cmdLine = 'python main.py --cuda --tied --batch-size 20 --pdropout %s --emsize %s --nhid %s\
+	    --save %s --infopath %s'%(pdropout,size,size,save_path,info_path)
 	    print(cmdLine)
 	    os.system(cmdLine)
 
