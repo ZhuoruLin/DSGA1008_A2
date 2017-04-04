@@ -130,6 +130,7 @@ def evaluate(data_source):
 
 
 def train():
+    model.train()
     total_loss = 0
     start_time = time.time()
     ntokens = len(corpus.dictionary)
