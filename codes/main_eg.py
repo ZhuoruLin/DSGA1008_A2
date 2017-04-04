@@ -4,11 +4,6 @@ import math
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-###
-import pickle
-from torch.utils.data import DataLoader
-import numpy as np
-###
 
 import data
 import model
@@ -21,19 +16,23 @@ parser.add_argument('--model', type=str, default='LSTM',
 parser.add_argument('--emsize', type=int, default=200,
                     help='size of word embeddings')
 parser.add_argument('--nhid', type=int, default=200,
-                    help='humber of hidden units per layer')
+                    help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=2,
                     help='number of layers')
 parser.add_argument('--lr', type=float, default=20,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
-parser.add_argument('--epochs', type=int, default=30,
+parser.add_argument('--epochs', type=int, default=40,
                     help='upper epoch limit')
-parser.add_argument('--batch-size', type=int, default=20, metavar='N',
+parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
+parser.add_argument('--dropout', type=float, default=0.2,
+                    help='dropout applied to layers (0 = no dropout)')
+parser.add_argument('--tied', action='store_true',
+                    help='tie the word embedding and softmax weights')
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 parser.add_argument('--cuda', action='store_true',
@@ -42,19 +41,15 @@ parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--save', type=str,  default='model.pt',
                     help='path to save the final model')
-parser.add_argument('--tied', action='store_true',
-                    help='tie the word embedding and softmax weights')
-parser.add_argument('--pdropout', type=float, default=0.2,
-                    help='Dropout probability, default 0.5')
-##############################################################################
-#Simon's Edit
-##############################################################################
-parser.add_argument('--infopath', type=str,  default='info.pk',
-                    help='path to save the final model')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
+if torch.cuda.is_available():
+    if not args.cuda:
+        print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+    else:
+        torch.cuda.manual_seed(args.seed)
 
 ###############################################################################
 # Load data
@@ -63,8 +58,11 @@ torch.manual_seed(args.seed)
 corpus = data.Corpus(args.data)
 
 def batchify(data, bsz):
+    # Work out how cleanly we can divide the dataset into bsz parts.
     nbatch = data.size(0) // bsz
+    # Trim off any extra elements that wouldn't cleanly fit (remainders).
     data = data.narrow(0, 0, nbatch * bsz)
+    # Evenly divide the data across the bsz batches.
     data = data.view(bsz, -1).t().contiguous()
     if args.cuda:
         data = data.cuda()
@@ -75,13 +73,12 @@ train_data = batchify(corpus.train, args.batch_size)
 val_data = batchify(corpus.valid, eval_batch_size)
 test_data = batchify(corpus.test, eval_batch_size)
 
-
 ###############################################################################
 # Build the model
 ###############################################################################
 
 ntokens = len(corpus.dictionary)
-model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers,args.pdropout,args.tied)
+model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied)
 if args.cuda:
     model.cuda()
 
@@ -90,16 +87,6 @@ criterion = nn.CrossEntropyLoss()
 ###############################################################################
 # Training code
 ###############################################################################
-
-def clip_gradient(model, clip):
-    """Computes a gradient clipping coefficient based on gradient norm."""
-    totalnorm = 0
-    for p in model.parameters():
-        modulenorm = p.grad.data.norm()
-        totalnorm += modulenorm ** 2
-    totalnorm = math.sqrt(totalnorm)
-    return min(1, args.clip / (totalnorm + 1e-6))
-
 
 def repackage_hidden(h):
     """Wraps hidden states in new Variables, to detach them from their history."""
@@ -117,6 +104,8 @@ def get_batch(source, i, evaluation=False):
 
 
 def evaluate(data_source):
+    # Turn on evaluation mode which disables dropout.
+    model.eval()
     total_loss = 0
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(eval_batch_size)
@@ -130,6 +119,7 @@ def evaluate(data_source):
 
 
 def train():
+    # Turn on training mode which enables dropout.
     model.train()
     total_loss = 0
     start_time = time.time()
@@ -137,15 +127,18 @@ def train():
     hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
+        # Starting each batch, we detach the hidden state from how it was previously produced.
+        # If we didn't, the model would try backpropagating all the way to start of the dataset.
         hidden = repackage_hidden(hidden)
         model.zero_grad()
         output, hidden = model(data, hidden)
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
 
-        clipped_lr = lr * clip_gradient(model, args.clip)
+        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
+        torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
         for p in model.parameters():
-            p.data.add_(-clipped_lr, p.grad.data)
+            p.data.add_(-lr, p.grad.data)
 
         total_loss += loss.data
 
@@ -159,58 +152,40 @@ def train():
             total_loss = 0
             start_time = time.time()
 
-##############################################################################
-#Simon's Edit: Initialized pretrained embeddings
-#init_emb_weights=np.load('penn_Glove_10000_100d.npy')
-#model.encoder.weight.data.copy_= torch.from_numpy(init_emb_weights)
-##############################################################################
 # Loop over epochs.
-##########
-#Simon's Edit: Add lines to store epochs val_loss information
-val_loss_history = []
-test_loss_history = []
-#########
-
 lr = args.lr
-prev_val_loss = None
-for epoch in range(1, args.epochs+1):
-    #############################################
-    #Simon's Edit: Shuffle traindata every epochs
-    #train_loader = DataLoader(train_data,batch_size=len(train_data),shuffle=True)
-    #train_data = iter(train_loader).next()
-    #############################################
-    epoch_start_time = time.time()
-    train()
-    val_loss = evaluate(val_data)
-    print('-' * 89)
-    print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-            'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
-                                       val_loss, math.exp(val_loss)))
-    print('-' * 89)
-    # Anneal the learning rate.
-    if prev_val_loss and val_loss > prev_val_loss:
-        lr /= 4
-    prev_val_loss = val_loss
-    ####Update val_loss history files
-    val_loss_history.append(val_loss)
+best_val_loss = None
 
+# At any point you can hit Ctrl + C to break out of training early.
+try:
+    for epoch in range(1, args.epochs+1):
+        epoch_start_time = time.time()
+        train()
+        val_loss = evaluate(val_data)
+        print('-' * 89)
+        print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
+                'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
+                                           val_loss, math.exp(val_loss)))
+        print('-' * 89)
+        # Save the model if the validation loss is the best we've seen so far.
+        if not best_val_loss or val_loss < best_val_loss:
+            with open(args.save, 'wb') as f:
+                torch.save(model, f)
+            best_val_loss = val_loss
+        else:
+            # Anneal the learning rate if no improvement has been seen in the validation dataset.
+            lr /= 4.0
+except KeyboardInterrupt:
+    print('-' * 89)
+    print('Exiting from training early')
 
-# Run on test data and save the model.
+# Load the best saved model.
+with open(args.save, 'rb') as f:
+    model = torch.load(f)
+
+# Run on test data.
 test_loss = evaluate(test_data)
-test_loss_history.append(test_loss)
 print('=' * 89)
 print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
     test_loss, math.exp(test_loss)))
 print('=' * 89)
-
-##########Simon's Edit########
-#####Save embeddings info to local#####
-##########################
-embeddings_numpy = model.encoder.weight.data.cpu().numpy()
-info_sheets = {'args':args,'val_losses':val_loss_history,'test_losses':test_loss_history, 'embeddings':embeddings_numpy}
-
-#if args.save != '':
-#    with open(args.save, 'wb') as f:
-#        torch.save(model, f)
-with open(args.infopath, 'wb') as handle:
-    pickle.dump(info_sheets, handle, protocol=pickle.HIGHEST_PROTOCOL)
